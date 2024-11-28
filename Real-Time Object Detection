@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Object Detection</title>
+    <style>
+        /* Global styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            flex-direction: column;
+            color: #333;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #333;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Video container */
+        #container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            background-color: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        video, canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+        }
+
+        /* Bounding box and label styles */
+        .label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 4px 8px;
+            border-radius: 4px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .label-text {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Adding smooth transition for bounding box */
+        .bounding-box {
+            transition: all 0.3s ease;
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Real-Time Object Detection</h1>
+    <div id="container">
+        <video id="video" autoplay muted></video>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Set up video and camera stream
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            return new Promise((resolve) => {
+                video.onloadedmetadata = () => resolve(video);
+            });
+        }
+
+        // Load COCO-SSD model
+        async function loadModel() {
+            return await cocoSsd.load();
+        }
+
+        // Detect objects in the video stream
+        async function detectObjects(model) {
+            const predictions = await model.detect(video);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            predictions.forEach(prediction => {
+                // Draw bounding box with animation
+                ctx.beginPath();
+                ctx.rect(...prediction.bbox);
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.stroke();
+
+                // Draw label with text shadow
+                const [x, y, width, height] = prediction.bbox;
+                ctx.font = '16px Arial';
+                ctx.fillStyle = 'white';
+                ctx.fillText(`${prediction.class} (${Math.round(prediction.score * 100)}%)`, x, y > 10 ? y - 5 : 10);
+            });
+
+            requestAnimationFrame(() => detectObjects(model));
+        }
+
+        // Main function to set up everything
+        async function main() {
+            await setupCamera();
+            const model = await loadModel();
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            video.play();
+            detectObjects(model);
+        }
+
+        main();
+    </script>
+</body>
+</html>
